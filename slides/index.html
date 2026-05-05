@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Evals for AI Agents — Workshop</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<aside class="reel" id="reel" aria-label="Talk progress">
+  <div class="reel-track">
+    <div class="reel-rail"></div>
+    <div class="reel-fill" id="reel-fill"></div>
+    <ol class="reel-stops" id="reel-stops"></ol>
+  </div>
+</aside>
+<div class="counter" id="counter">1 / 1</div>
+
+<div class="deck">
+
+<!-- ============================================================
+     SLIDE 1 — TITLE
+     ============================================================ -->
+<section class="slide title-slide active" data-section="Title">
+  <div class="slide-inner" style="text-align: center;">
+    <p class="eyebrow">A 60-minute workshop</p>
+    <h1 class="title-main">Evals for <span class="accent">AI Agents</span></h1>
+    <p class="subtitle">How to stop shipping on vibes — and start shipping on evidence.</p>
+  </div>
+  <div class="speaker-note">
+    <h4>Speaker note</h4>
+    <p>Open with energy. Smile. Take a breath. Don't start the talk yet — let the title sit for 3 seconds while the room settles.</p>
+    <p>Press <strong>?</strong> at any time to see the keyboard shortcuts.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 2 — INTRO (who's giving this talk)
+     ============================================================ -->
+<section class="slide title-slide" data-section="Intro">
+  <div class="slide-inner intro-block">
+    <img src="photo.jpg" alt="Sanchit Tanwar" class="intro-avatar" />
+    <p class="eyebrow intro-eyebrow">Hi, I'm</p>
+    <h1 class="title-main intro-name">Sanchit Tanwar</h1>
+    <p class="intro-role">Senior Software Engineer @ <span class="accent">Atlassian</span></p>
+    <p class="intro-role">GenAI Instructor @ <span class="accent">AirTribe</span></p>
+    <p class="intro-prev">previously <span class="muted">Amazon · American Express</span></p>
+  </div>
+  <div class="speaker-note">
+    <h4>What to say (~30–45s)</h4>
+    <p>Quick personal intro. Mention what you build at Atlassian — connect it to the topic ("I work on AI / coding agent stuff"). Optional: a short personal hook (why you care about evals).</p>
+    <p>Keep it tight. The audience didn't come to hear your resume; they came for the content. Set up your credibility in one breath, then move on.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — THE STORY
+     ============================================================ -->
+<section class="slide" data-section="§1 · Cold open" data-reel-stop="The story">
+  <div class="slide-inner">
+    <p class="eyebrow">A few months ago</p>
+    <h2>I was building a job search agent.</h2>
+    <p class="muted" style="margin-top: 1.5rem; font-size: 1.4rem; line-height: 1.6; max-width: 900px;">
+      It scraped users' LinkedIn feeds every morning.<br/>
+      An LLM extracted whether each post matched their job preferences.<br/>
+      If matched — send a Telegram notification. Simple, useful, loved by early users.
+    </p>
+    <p style="margin-top: 2rem; font-size: 1.6rem;"><span class="bad">Then I changed the extraction logic.</span></p>
+  </div>
+  <div class="speaker-note">
+    <h4>Delivery</h4>
+    <p>Slow this slide down. Pause after each line. The tension is the point.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — THE DELETED ASSERTION (CODE)
+     ============================================================ -->
+<section class="slide" data-section="§1 · The regression">
+  <div class="slide-inner">
+    <h2>The regression.</h2>
+    <div class="cols-2">
+      <div class="col">
+        <h3>Before</h3>
+<pre class="code"><span class="com">// LLM extracts from each post:</span>
+{
+  <span class="str">"isMatched"</span>: <span class="kw">false</span>,
+  <span class="str">"company"</span>:   <span class="kw">"Atlassian"</span>,
+  <span class="str">"role"</span>:      <span class="kw">"Staff Eng"</span>
+}
+<span class="com">// → no notification ✓</span></pre>
+      </div>
+      <div class="col">
+        <h3>After my change</h3>
+<pre class="code"><span class="com">// Tweaked what I asked the LLM.</span>
+<span class="com">// Unintended side-effect:</span>
+{
+  <span class="str">"isMatched"</span>: <span class="del">true</span>,  <span class="com">// ← wrong</span>
+  <span class="str">"company"</span>:   <span class="str">"Atlassian"</span>,
+  <span class="str">"role"</span>:      <span class="str">"Staff Eng"</span>
+}
+<span class="com">// → spam notification ✗</span></pre>
+      </div>
+    </div>
+    <p style="margin-top: 1.5rem; font-size: 1.3rem; color: var(--text-muted);">
+      <span class="bad">A user reported 40+ irrelevant notifications.</span>
+      &nbsp; <span class="muted">I had no eval dataset. I found out from a user.</span>
+    </p>
+  </div>
+  <div class="speaker-note">
+    <h4>The line to land</h4>
+    <p>"I changed the prompt slightly — just how I asked for the data. One field's semantics shifted. isMatched started firing for anything that looked like job-adjacent content. I had no test suite. A user found the bug."</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — THESIS
+     ============================================================ -->
+<section class="slide thesis" data-section="§1 · Thesis">
+  <div class="slide-inner">
+    <p class="quote">
+      Evals are how you find out your agent is broken<br/>
+      <em>before your users do.</em>
+    </p>
+    <p class="muted" style="margin-top: 2rem; text-align: center; font-size: 1.2rem;">I now run <code style="font-family: var(--font-mono); color: var(--accent);">npm run eval</code> before every merge that touches the LLM or the system prompt.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — WHY EVALS (overview)
+     ============================================================ -->
+<section class="slide" data-section="§2 · Why evals matter" data-reel-stop="Why evals">
+  <div class="slide-inner">
+    <p class="eyebrow">Why evals matter</p>
+    <h2>Three reasons standard testing breaks for AI.</h2>
+    <div class="reasons-stack">
+      <div class="reason">
+        <div class="reason-num">01</div>
+        <div class="reason-body">
+          <h4>LLMs are non-deterministic.</h4>
+          <p>Same input → different output. Your <code>assertEqual</code> is dead.</p>
+        </div>
+      </div>
+      <div class="reason">
+        <div class="reason-num">02</div>
+        <div class="reason-body">
+          <h4>Failure is high-dimensional.</h4>
+          <p>"Wrong" can mean hallucinated, off-tone, leaks PII, ignores tools, loops forever, or just subtly worse than yesterday.</p>
+        </div>
+      </div>
+      <div class="reason">
+        <div class="reason-num">03</div>
+        <div class="reason-body">
+          <h4>Vibes don't scale.</h4>
+          <p>You can eyeball 20 traces. You cannot eyeball 20,000. If you can't eyeball them, you don't know what your system does.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — AN EVAL IS THREE THINGS
+     ============================================================ -->
+<section class="slide" data-section="§3 · What is an eval">
+  <div class="slide-inner">
+    <p class="eyebrow">What an eval actually is</p>
+    <h2>An eval is three things.</h2>
+<pre class="code">1. A <span class="kw">dataset</span>   — inputs that look like real user traffic
+2. A <span class="kw">grader</span>    — a function: (input, output) → score
+3. A <span class="kw">runner</span>    — runs the system on the dataset, applies the grader, reports</pre>
+    <p class="muted" style="margin-top: 1.5rem; font-size: 1.3rem;">Everything else is variations on these three.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — FIVE PILLARS OVERVIEW
+     ============================================================ -->
+<section class="slide" data-section="§4 · The five pillars" data-reel-stop="Five pillars">
+  <div class="slide-inner">
+    <p class="eyebrow">The five pillars</p>
+    <h2>What you actually grade.</h2>
+    <div class="pillar-grid">
+      <div class="pillar">
+        <div class="num">01</div>
+        <div class="name">Task success</div>
+        <div class="desc">Did the user get what they asked for?</div>
+      </div>
+      <div class="pillar">
+        <div class="num">02</div>
+        <div class="name">Trajectory</div>
+        <div class="desc">Sensible path, or a wandering mess?</div>
+      </div>
+      <div class="pillar">
+        <div class="num">03</div>
+        <div class="name">Tool use</div>
+        <div class="desc">Right tool, right args, right order?</div>
+      </div>
+      <div class="pillar">
+        <div class="num">04</div>
+        <div class="name">Safety</div>
+        <div class="desc">No PII leaks, destructive cmds, jailbreaks?</div>
+      </div>
+      <div class="pillar">
+        <div class="num">05</div>
+        <div class="name">Cost &amp; latency</div>
+        <div class="desc">Usable in production at scale?</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — FIVE GRADERS AS CODE
+     ============================================================ -->
+<section class="slide" data-section="§4 · Five graders as code">
+  <div class="slide-inner">
+    <span class="demo-callout">Code</span>
+    <h2>Every pillar fits in ~3 lines of code.</h2>
+<pre class="code"><span class="com"># 1. Task success — all three fields correct</span>
+<span class="kw">def</span> <span class="fn">grade_extraction</span>(case, result) -&gt; <span class="kw">bool</span>:
+    <span class="kw">return</span> result[<span class="str">"isMatched"</span>] == case.expected <span class="kw">and</span> result[<span class="str">"company"</span>] == case.company <span class="kw">and</span> result[<span class="str">"role"</span>] == case.role
+
+<span class="com"># 2. Trajectory — pre-filter ran before LLM calls</span>
+<span class="kw">def</span> <span class="fn">grade_trajectory</span>(trace) -&gt; <span class="kw">bool</span>:
+    <span class="kw">return</span> trace.llm_calls &lt;= <span class="num">25</span>  <span class="com"># filter should cut ~120 posts to &lt;25</span>
+
+<span class="com"># 3. Tool use — no notification sent when isMatched is false</span>
+<span class="kw">def</span> <span class="fn">grade_no_spam</span>(trace) -&gt; <span class="kw">bool</span>:
+    <span class="kw">return</span> <span class="fn">all</span>(c.args[<span class="str">"isMatched"</span>] <span class="kw">for</span> c <span class="kw">in</span> trace.tool_calls <span class="kw">if</span> c.tool == <span class="str">"send_telegram"</span>)
+
+<span class="com"># 4. Safety — notification goes to the right user</span>
+<span class="kw">def</span> <span class="fn">grade_user_isolation</span>(trace) -&gt; <span class="kw">bool</span>:
+    <span class="kw">return</span> <span class="fn">all</span>(c.args[<span class="str">"user_id"</span>] == trace.user_id <span class="kw">for</span> c <span class="kw">in</span> trace.tool_calls <span class="kw">if</span> c.tool == <span class="str">"send_telegram"</span>)
+
+<span class="com"># 5. Cost — shouldn't cost more than $0.02 per user run</span>
+<span class="kw">def</span> <span class="fn">grade_cost</span>(trace) -&gt; <span class="kw">bool</span>:
+    <span class="kw">return</span> trace.total_cost_usd &lt; <span class="num">0.02</span></pre>
+    <p class="muted" style="margin-top: 1rem; font-size: 1.1rem; text-align: center;">
+      Every grader returns a <strong>boolean</strong>. Binary scoring is non-negotiable.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — WHAT'S IN A TRACE
+     ============================================================ -->
+<section class="slide" data-section="§5 · Tracing">
+  <div class="slide-inner">
+    <p class="eyebrow">Tracing &amp; debugging</p>
+    <h2>What a useful trace looks like.</h2>
+    <div class="trace-tree">
+<div class="span-row"><span class="root span-name">▼ agent_run(user="alice", date="2025-05-05")</span><span class="span-time">4.2s</span></div>
+<div class="span-row"><span class="span-name">  ├── fetch_linkedin_feed(user_id="alice")</span><span class="span-time">820ms</span></div>
+<div class="span-row"><span class="span-name">  ├── filter_posts(min_engagement=10) <span class="muted">120 → 18 posts</span></span><span class="span-time">12ms</span></div>
+<div class="span-row"><span class="span-name">  ├── llm_extract(post_id="li-4821") <span class="muted">→ {isMatched: true, company: "Stripe", role: "SWE"}</span></span><span class="span-time">880ms</span></div>
+<div class="span-row"><span class="span-name">  ├── llm_extract(post_id="li-4832") <span class="muted">→ {isMatched: false, company: null, role: null}</span></span><span class="span-time">720ms</span></div>
+<div class="span-row"><span class="span-name">  ├── ... × 16 more</span><span class="span-time">...</span></div>
+<div class="span-row"><span class="span-name">  └── send_telegram(user="alice", matches=3)</span><span class="pass">OK · 240ms</span></div>
+    </div>
+    <p class="muted" style="margin-top: 1rem; font-size: 1.1rem;">Parent-child spans · timing · LLM outputs · filter ratio · the full picture visible at a glance.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — INSTRUMENTATION CODE
+     ============================================================ -->
+<section class="slide" data-section="§5 · Instrumentation">
+  <div class="slide-inner">
+    <span class="demo-callout">Code</span>
+    <h2>What instrumentation looks like.</h2>
+<pre class="code"><span class="kw">from</span> opentelemetry <span class="kw">import</span> trace
+tracer = trace.get_tracer(<span class="str">"job-search-agent"</span>)
+
+<span class="fn">@tracer.start_as_current_span</span>(<span class="str">"agent.run"</span>)
+<span class="kw">def</span> <span class="fn">run_agent</span>(user_id: <span class="kw">str</span>) -&gt; AgentResult:
+    span = trace.get_current_span()
+    span.set_attribute(<span class="str">"agent.user_id"</span>, user_id)
+
+    posts = fetch_linkedin_feed(user_id)
+    <span class="kw">with</span> tracer.start_as_current_span(<span class="str">"llm.extract"</span>) <span class="kw">as</span> s:
+        result = extract_job_info(post)
+        s.set_attribute(<span class="str">"llm.is_matched"</span>, result[<span class="str">"isMatched"</span>])
+        s.set_attribute(<span class="str">"llm.company"</span>,    result[<span class="str">"company"</span>])
+        s.set_attribute(<span class="str">"llm.role"</span>,       result[<span class="str">"role"</span>])</pre>
+    <p class="muted" style="margin-top: 1rem; text-align: center; font-size: 1.15rem;">
+      If your agent doesn't have spans like this today, that's the first thing you do Monday.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — FIVE-STEP PLAYBOOK
+     ============================================================ -->
+<section class="slide" data-section="§6 · The playbook" data-reel-stop="Playbook">
+  <div class="slide-inner">
+    <p class="eyebrow">Build the eval suite</p>
+    <h2>The five-step playbook.</h2>
+<pre class="code">1. Look at your data first
+2. Build the dataset from real failures
+3. Pick the right grader for each criterion
+4. Wire it into CI
+5. Close the loop with production</pre>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — STEP 2
+     ============================================================ -->
+<!-- ============================================================
+     SLIDE — STEP 1: LOOK AT YOUR DATA
+     ============================================================ -->
+<section class="slide" data-section="§6 · Step 1 · Look at data">
+  <div class="slide-inner">
+    <p class="eyebrow">Step 01</p>
+    <h2>Read 50–100 real traces. No shortcuts.</h2>
+    <ul class="bullets" style="margin-top: 1.5rem;">
+      <li>This is <strong>error analysis.</strong> You're cataloguing failure modes you didn't predict.</li>
+      <li><em>Hamel Husain's rule:</em> "Write evals for errors you discover, not errors you imagine."</li>
+      <li>For the job search agent: read 100 real runs. You'll find <em>isMatched</em> fires on company announcements, conference posts, opinion pieces — things that mention roles without offering them.</li>
+      <li><span class="bad">Counter-take to "eval-driven development":</span> you wouldn't have predicted those cases without looking at real data.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="slide" data-section="§6 · Step 2 · Build dataset">
+  <div class="slide-inner">
+    <p class="eyebrow">Step 02</p>
+    <h2>Build the dataset.</h2>
+    <ul class="bullets" style="margin-top: 1.5rem;">
+      <li>Source: prod traffic, user complaints, the failures from Step 1.</li>
+      <li><strong>Stratify by failure type.</strong> For the job search agent: clear job posts, borderline posts, opinion pieces, company news, conference announcements.</li>
+      <li>Aim for <strong>~50 examples to start</strong>. I run each 3 times (pass^3) — that's 150 LLM calls per eval run. Manageable.</li>
+      <li>Label each example: <code>expected_matched</code>, <code>expected_company</code>, <code>expected_role</code>.</li>
+    </ul>
+    <p style="margin-top: 1.5rem; font-size: 1.2rem; color: var(--accent);">
+      Every notification your users <strong>complained about or ignored</strong> is a future eval case.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — STEP 3 · GRADER TABLE
+     ============================================================ -->
+<section class="slide" data-section="§6 · Step 3 · Pick grader">
+  <div class="slide-inner">
+    <p class="eyebrow">Step 03</p>
+    <h2>Pick the right grader.</h2>
+    <table>
+      <thead>
+        <tr><th>Grader</th><th>When to use</th><th>Cost</th><th>Reliability</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Code / assertion</strong></td><td>Structured outputs, tool args, JSON schemas</td><td>Free</td><td class="good">Highest</td></tr>
+        <tr><td><strong>LLM-as-judge</strong></td><td>Subjective quality, tone, helpfulness</td><td>$$</td><td class="warn">Medium · needs calibration</td></tr>
+        <tr><td><strong>Human review</strong></td><td>Anything novel, ground truth, calibration</td><td>$$$</td><td class="good">Highest · doesn't scale</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 2rem; text-align: center; font-size: 1.4rem;">
+      <em>Use code when you can, models when you must, humans to calibrate.</em>
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — DEMO: PYTEST OUTPUT
+     ============================================================ -->
+<section class="slide" data-section="§6 · npm run eval demo" data-reel-stop="CI demo">
+  <div class="slide-inner">
+    <span class="demo-callout">Demo</span>
+    <h2>What "evals as CI" actually feels like.</h2>
+<pre class="code terminal" style="border-left-color: var(--good);">npm run eval
+
+Running 50 cases × 3 runs each...
+
+  isMatched accuracy    <span class="good">48/50  (96%)</span>   ✓
+  company extraction    <span class="bad">41/50  (82%)</span>   ✗  ← was 91% on main
+  role extraction       <span class="good">45/50  (90%)</span>   ✓
+  no-spam (safety)      <span class="good">50/50 (100%)</span>   ✓
+  cost per run          <span class="bad">$0.023</span>         ✗  ← budget $0.015
+
+SCORE DELTA vs main:
+  company_extraction  <span class="bad">-9pp</span>
+  cost_per_run        <span class="bad">+53%</span>
+
+<span class="bad">2 regressions detected. Merge blocked.</span></pre>
+    <p class="muted" style="margin-top: 1rem; font-size: 1.15rem;">
+      The diff isn't "tests passed." It's a <strong>vector</strong> — five pillars, each with a delta.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — THE KILLER COMPARISON TABLE
+     ============================================================ -->
+<section class="slide" data-section="§7 · The killer demo" data-reel-stop="Model upgrade">
+  <div class="slide-inner">
+    <span class="demo-callout">Demo</span>
+    <h2>A model upgrade on the job search agent.</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Haiku 4.5<br/><span class="muted" style="font-size: 0.85em;">prompt v1</span></th>
+          <th>Sonnet 4.6<br/><span class="muted" style="font-size: 0.85em;">prompt v1</span></th>
+          <th>Sonnet 4.6<br/><span class="muted" style="font-size: 0.85em;">prompt v2</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>isMatched accuracy (pass^3)</td><td class="num">0.84</td><td class="num">0.91</td><td class="num"><strong>0.93</strong></td></tr>
+        <tr><td>Company extraction</td><td class="num">0.78</td><td class="num">0.88</td><td class="num"><strong>0.91</strong></td></tr>
+        <tr><td>Role extraction</td><td class="num">0.76</td><td class="num">0.85</td><td class="num"><strong>0.90</strong></td></tr>
+        <tr><td>No-spam (safety)</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
+        <tr><td>Cost per user/day</td><td class="num">$0.008</td><td class="num"><span class="warn">$0.031 ⚠</span></td><td class="num"><strong>$0.019</strong></td></tr>
+        <tr class="winner"><td><strong>Decision</strong></td><td class="muted">baseline</td><td class="num"><span class="bad">don't ship</span></td><td><strong>SHIP</strong></td></tr>
+      </tbody>
+    </table>
+    <p class="muted" style="margin-top: 1.2rem; font-size: 1.05rem;">
+      Without evals, you'd ship column 2 and notice the bill quadrupled — six weeks later.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — HOT TAKES (1/2)
+     ============================================================ -->
+<section class="slide" data-section="§8 · Pitfalls 1–4" data-reel-stop="Pitfalls">
+  <div class="slide-inner">
+    <p class="eyebrow">Pitfalls</p>
+    <h2>Four things I wish I'd known.</h2>
+    <div class="hot-takes">
+      <div class="hot-take">
+        <div class="num">01</div>
+        <div class="text"><strong>Eval-driven development is mostly wrong.</strong> Look at data first; write evals for failures you've actually seen.</div>
+      </div>
+      <div class="hot-take">
+        <div class="num">02</div>
+        <div class="text"><strong>Don't outsource your annotations.</strong> Domain expertise is the bottleneck.</div>
+      </div>
+      <div class="hot-take">
+        <div class="num">03</div>
+        <div class="text"><strong>Likert scales lie.</strong> A 1–5 score from a judge is two bits of signal cosplaying as five. Use binary + a reason.</div>
+      </div>
+      <div class="hot-take">
+        <div class="num">04</div>
+        <div class="text"><strong>More metrics ≠ better evals.</strong> 5 well-chosen metrics beat 30 noisy ones.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — MONDAY-MORNING CHECKLIST
+     ============================================================ -->
+<section class="slide" data-section="§9 · Monday morning">
+  <div class="slide-inner">
+    <p class="eyebrow">The checklist</p>
+    <h2>Monday morning. Photograph this slide.</h2>
+    <div class="checklist">
+      <div class="item">Add OTel-style tracing if you don't have it.</div>
+      <div class="item">Pull 50 real traces from your agent. Read all of them.</div>
+      <div class="item">Group failures into 3–5 buckets. That's your eval taxonomy.</div>
+      <div class="item">Build a 100-example dataset weighted by those buckets.</div>
+      <div class="item">Pick ONE grader per bucket (code &gt; LLM-judge &gt; human).</div>
+      <div class="item">Run each task k=5 times. Report pass^5, not pass@1.</div>
+      <div class="item">Wire the suite into CI. Block merges on regression.</div>
+      <div class="item">Calibrate any LLM-judge against 50 human-labeled examples.</div>
+      <div class="item">Sample 1% of prod, run the same judges, watch for drift.</div>
+      <div class="item">Lock in a versioned baseline so you can A/B the next model upgrade.</div>
+    </div>
+  </div>
+  <div class="speaker-note">
+    <h4>Pace</h4>
+    <p>Slow down here. Let them photograph it. Read the first three out loud while they shoot it.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — CLOSING (callback to opening)
+     ============================================================ -->
+<section class="slide thesis" data-section="§9 · Close">
+  <div class="slide-inner">
+    <p class="quote" style="font-size: clamp(1.6rem, 3.5vw, 2.8rem);">
+      We started with a job search agent that sent spam<br/>
+      <em>because I changed the prompt and didn't have evals.</em>
+    </p>
+    <p style="margin-top: 2rem; text-align: center; font-size: 1.4rem; max-width: 1000px; margin-left: auto; margin-right: auto;">
+      A user got 40+ irrelevant notifications. Immaculate vibes on my end. <span class="bad">Broken product for them.</span><br/><br/>
+      Everything we did today exists for one reason: <span class="accent">so that <code style="font-family: var(--font-mono);">npm run eval</code> catches it before a user does.</span>
+    </p>
+    <p class="muted" style="margin-top: 2rem; text-align: center; font-size: 1.3rem;">
+      Vibes don't scale past 20 examples. Evals do.<br/>
+      <strong style="color: var(--text);">Go build the eval loop. That's the muscle. That's the moat.</strong>
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — THANK YOU
+     ============================================================ -->
+<section class="slide title-slide" data-section="Thank you">
+  <div class="slide-inner">
+    <div class="thanks-grid">
+      <div class="thanks-text">
+        <p class="eyebrow">Thank you</p>
+        <h1 class="title-main" style="font-size: clamp(2.5rem, 5vw, 4.2rem);">Questions?</h1>
+        <div class="thanks-identity">
+          <img src="photo.jpg" alt="Sanchit Tanwar" class="thanks-avatar" />
+          <div class="thanks-meta">
+            <p class="thanks-name">Sanchit Tanwar</p>
+            <p class="thanks-role">Senior Software Engineer @ <span class="accent">Atlassian</span></p>
+            <p class="thanks-role">GenAI Instructor @ <span class="accent">AirTribe</span></p>
+            <p class="thanks-prev">previously <span class="muted">Amazon · American Express</span></p>
+          </div>
+        </div>
+      </div>
+      <div class="thanks-qr">
+        <img src="linkedin-qr.png" alt="Connect on LinkedIn" />
+        <p class="thanks-qr-label">connect on LinkedIn</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- ============================================================
+     CHROME — overlays
+     ============================================================ -->
+
+<div class="help-overlay" id="help-overlay">
+  <div class="help-card">
+    <h3>Keyboard shortcuts</h3>
+    <div class="row"><span class="key">→</span> <span class="key">Space</span> <span class="desc">— next slide</span></div>
+    <div class="row"><span class="key">←</span> <span class="desc">— previous slide</span></div>
+    <div class="row"><span class="key">Home</span> <span class="key">End</span> <span class="desc">— first / last slide</span></div>
+    <div class="row"><span class="key">P</span> <span class="desc">— open presenter window (notes + next-slide preview)</span></div>
+    <div class="row"><span class="key">F</span> <span class="desc">— fullscreen</span></div>
+    <div class="row"><span class="key">23</span><span class="key">↵</span> <span class="desc">— jump to slide 23</span></div>
+    <div class="row"><span class="key">?</span> <span class="desc">— this help</span></div>
+    <div class="row"><span class="key">Esc</span> <span class="desc">— close overlay</span></div>
+  </div>
+</div>
+
+<script src="slides.js"></script>
+</body>
+</html>

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Presenter · Evals for AI Agents</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  /* =====================================================================
+     Presenter view — never shown to audience.
+     Layout: top header (counter + timer), main (current + next + notes),
+             bottom (prev/next + up-next title).
+     ===================================================================== */
+
+  html, body {
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  body.presenter {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    padding: 0.8rem 1.2rem;
+    gap: 0.8rem;
+  }
+
+  /* ===== Header ===== */
+  .pr-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .pr-header .pr-title {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-faint);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .pr-header .pr-counter {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: var(--accent);
+  }
+  .pr-link {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-left: 1rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .pr-link.linked   { color: var(--good); border-color: var(--good); }
+  .pr-link.standalone { color: var(--text-faint); }
+  .pr-header .pr-timer {
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    color: var(--text);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .pr-header .pr-timer.warn { color: var(--warn); }
+  .pr-header .pr-timer.over { color: var(--bad); }
+  .pr-header button {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.35rem 0.8rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-left: 0.4rem;
+  }
+  .pr-header button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .pr-header .pr-timer-group { display: flex; align-items: center; gap: 0.3rem; }
+
+  /* ===== Main grid: current slide | next slide / notes ===== */
+  .pr-main {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 1rem;
+    min-height: 0;
+  }
+  .pr-pane {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .pr-pane-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.5rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+    flex: 0 0 auto;
+  }
+  .pr-pane-label .pr-pane-meta {
+    color: var(--text-muted);
+    margin-left: 0.6rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .pr-iframe-wrap {
+    flex: 1 1 auto;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+  }
+  /* Iframe is rendered at "deck size" then scaled down to fit pane.
+     We use transform: scale + transform-origin: top-left and absolute size. */
+  .pr-iframe-wrap iframe {
+    border: 0;
+    position: absolute;
+    top: 0; left: 0;
+    /* base "design" size; JS resizes scale on the wrapper */
+    width: 1600px;
+    height: 1000px;
+    transform-origin: top left;
+    background: var(--bg);
+    /* Iframes are read-only previews. Block all pointer events so the user
+       can't click into them and steal keyboard focus from the presenter. */
+    pointer-events: none;
+  }
+
+  .pr-right {
+    display: grid;
+    grid-template-rows: 0.9fr 1.4fr;
+    gap: 1rem;
+    min-height: 0;
+  }
+
+  .pr-notes {
+    padding: 1rem 1.2rem;
+    overflow-y: auto;
+    color: var(--text);
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+  .pr-notes h4 {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+  .pr-notes p, .pr-notes li { margin-bottom: 0.7rem; font-size: 1rem; line-height: 1.55; }
+  .pr-notes ul { padding-left: 1.2rem; }
+  .pr-notes em { color: var(--accent); font-style: italic; }
+  .pr-notes code {
+    font-family: var(--font-mono);
+    background: var(--bg-elevated);
+    padding: 0.05em 0.3em;
+    border-radius: 3px;
+    font-size: 0.95em;
+  }
+  .pr-notes .pr-notes-empty {
+    color: var(--text-faint);
+    font-style: italic;
+  }
+
+  /* ===== Footer ===== */
+  .pr-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.4rem;
+    border-top: 1px solid var(--border);
+  }
+  .pr-footer .pr-nav-group { display: flex; gap: 0.5rem; }
+  .pr-footer button {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.55rem 1.2rem;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .pr-footer button:hover { border-color: var(--accent); color: var(--accent); }
+  .pr-footer button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+  .pr-footer button.primary:hover { background: var(--accent-strong); color: var(--bg); }
+
+  .pr-footer .pr-up-next {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-faint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .pr-footer .pr-up-next strong {
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 0.4rem;
+  }
+
+  /* small screens — stack instead */
+  @media (max-width: 1100px) {
+    .pr-main { grid-template-columns: 1fr; }
+    .pr-right { grid-template-rows: auto auto; }
+  }
+</style>
+</head>
+<body class="presenter">
+
+<header class="pr-header">
+  <div>
+    <span class="pr-title">Presenter view</span>
+    <span class="pr-counter" id="pr-counter">— / —</span>
+    <span class="pr-link standalone" id="pr-link" title="Connection to audience window">○ standalone</span>
+  </div>
+  <div class="pr-timer-group">
+    <span class="pr-timer" id="pr-timer">00:00</span>
+    <button id="pr-timer-toggle">pause</button>
+    <button id="pr-timer-reset">reset</button>
+  </div>
+</header>
+
+<main class="pr-main">
+  <!-- Current slide preview -->
+  <section class="pr-pane">
+    <div class="pr-pane-label">Current</div>
+    <div class="pr-iframe-wrap" id="pr-current-wrap">
+      <iframe id="pr-current" title="Current slide"></iframe>
+    </div>
+  </section>
+
+  <!-- Right column: next preview + notes -->
+  <div class="pr-right">
+    <section class="pr-pane">
+      <div class="pr-pane-label">Up next <span class="pr-pane-meta" id="pr-next-label"></span></div>
+      <div class="pr-iframe-wrap" id="pr-next-wrap">
+        <iframe id="pr-next" title="Next slide"></iframe>
+      </div>
+    </section>
+
+    <section class="pr-pane">
+      <div class="pr-pane-label">Speaker notes</div>
+      <div class="pr-notes" id="pr-notes">
+        <p class="pr-notes-empty">Loading…</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="pr-footer">
+  <div class="pr-nav-group">
+    <button id="pr-prev">← prev</button>
+    <button id="pr-next-btn" class="primary">next →</button>
+  </div>
+  <div class="pr-up-next" id="pr-up-next-title"></div>
+</footer>
+
+<script>
+/* =========================================================================
+   Presenter logic. Drives both iframes directly; broadcasts navigation
+   to the audience window via BroadcastChannel('deck-sync').
+   ========================================================================= */
+(function () {
+  const channel = new BroadcastChannel("deck-sync");
+  const myId = "presenter-" + Math.random().toString(36).slice(2);
+
+  const iframeCurrent = document.getElementById("pr-current");
+  const iframeNext = document.getElementById("pr-next");
+  const counterEl = document.getElementById("pr-counter");
+  const timerEl = document.getElementById("pr-timer");
+  const timerToggleBtn = document.getElementById("pr-timer-toggle");
+  const timerResetBtn = document.getElementById("pr-timer-reset");
+  const notesEl = document.getElementById("pr-notes");
+  const upNextEl = document.getElementById("pr-up-next-title");
+  const nextLabelEl = document.getElementById("pr-next-label");
+  const prevBtn = document.getElementById("pr-prev");
+  const nextBtn = document.getElementById("pr-next-btn");
+
+  let currentIdx = 1; // 1-indexed
+  let total = 1;
+  let lastSeenPeerAt = 0;
+
+  // Init from hash sent by audience window
+  const m = location.hash.match(/#(\d+)/);
+  if (m) currentIdx = parseInt(m[1], 10);
+
+  // Set iframe sources dynamically so they load at the correct slide
+  // on first open (otherwise the iframe briefly shows slide 1).
+  iframeCurrent.src = `index.html?passive=1#${currentIdx}`;
+  iframeNext.src = `index.html?passive=1#${currentIdx + 1}`;
+
+  // ===== Iframe scaling so the embedded deck fits its pane =====
+  function fitIframe(wrapId, iframeEl) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap || !iframeEl) return;
+    const baseW = 1600, baseH = 1000;
+    const wrapW = wrap.clientWidth;
+    const wrapH = wrap.clientHeight;
+    if (wrapW === 0 || wrapH === 0) return;
+    const scale = Math.min(wrapW / baseW, wrapH / baseH);
+    iframeEl.style.transform = `scale(${scale})`;
+    // Center inside wrapper after scaling
+    const offX = (wrapW - baseW * scale) / 2;
+    const offY = (wrapH - baseH * scale) / 2;
+    iframeEl.style.left = offX + "px";
+    iframeEl.style.top = offY + "px";
+  }
+  function fitAll() {
+    fitIframe("pr-current-wrap", iframeCurrent);
+    fitIframe("pr-next-wrap", iframeNext);
+  }
+  window.addEventListener("resize", fitAll);
+
+  // ===== Drive iframes via the global exposed by slides.js =====
+  function setIframe(iframe, slideNum) {
+    try {
+      const w = iframe.contentWindow;
+      if (w && typeof w.deckGo === "function") {
+        w.deckGo(slideNum);
+      } else {
+        // iframe not ready yet — fall back to hash, slides.js will pick up
+        iframe.src = `index.html?passive=1#${slideNum}`;
+      }
+    } catch (err) {
+      // cross-origin or not loaded — best effort
+    }
+  }
+
+  function readTotal() {
+    try {
+      const w = iframeCurrent.contentWindow;
+      if (w && typeof w.deckTotal === "function") return w.deckTotal();
+    } catch {}
+    return total;
+  }
+
+  function getSlideTitle(slideNum) {
+    try {
+      const doc = iframeCurrent.contentDocument;
+      const slides = doc.querySelectorAll(".slide");
+      const node = slides[slideNum - 1];
+      if (!node) return "";
+      // Prefer h1, then h2, then data-section
+      const h = node.querySelector("h1, h2");
+      if (h) return h.textContent.trim().replace(/\s+/g, " ").slice(0, 80);
+      return node.dataset.section || "";
+    } catch { return ""; }
+  }
+
+  function getSlideNotes(slideNum) {
+    try {
+      const doc = iframeCurrent.contentDocument;
+      const slides = doc.querySelectorAll(".slide");
+      const node = slides[slideNum - 1];
+      const note = node?.querySelector(".speaker-note");
+      return note ? note.innerHTML : "";
+    } catch { return ""; }
+  }
+
+  function update() {
+    total = readTotal();
+    counterEl.textContent = `${currentIdx} / ${total}`;
+
+    setIframe(iframeCurrent, currentIdx);
+    const nextNum = Math.min(currentIdx + 1, total);
+    setIframe(iframeNext, nextNum);
+
+    // Notes
+    const noteHtml = getSlideNotes(currentIdx);
+    notesEl.innerHTML = noteHtml || `<p class="pr-notes-empty">No notes for this slide.</p>`;
+
+    // Up next
+    if (currentIdx >= total) {
+      upNextEl.innerHTML = "<strong>End of deck</strong>";
+      nextLabelEl.textContent = "(end)";
+    } else {
+      const t = getSlideTitle(currentIdx + 1);
+      upNextEl.innerHTML = `Up next: <strong>${t || `slide ${currentIdx + 1}`}</strong>`;
+      nextLabelEl.textContent = `slide ${currentIdx + 1}`;
+    }
+
+    location.hash = `#${currentIdx}`;
+    requestAnimationFrame(fitAll);
+  }
+
+  function go(n) {
+    if (n < 1) n = 1;
+    if (n > total) n = total;
+    currentIdx = n;
+    channel.postMessage({ from: myId, type: "goto", slide: currentIdx });
+    update();
+  }
+
+  // ===== Channel: receive navigation from audience window =====
+  const linkEl = document.getElementById("pr-link");
+  function setLinkStatus() {
+    const linked = (Date.now() - lastSeenPeerAt) < 5000;
+    linkEl.classList.toggle("linked", linked);
+    linkEl.classList.toggle("standalone", !linked);
+    linkEl.textContent = linked ? "● linked" : "○ standalone";
+  }
+  setInterval(setLinkStatus, 1000);
+
+  channel.onmessage = (e) => {
+    if (!e.data || e.data.from === myId) return;
+    lastSeenPeerAt = Date.now();
+    setLinkStatus();
+    if (e.data.type === "goto") {
+      currentIdx = e.data.slide;
+      update();
+    } else if (e.data.type === "request-state") {
+      channel.postMessage({ from: myId, type: "state", slide: currentIdx });
+    }
+    // ping/pong responses just refresh the lastSeenPeerAt timestamp
+  };
+
+  // Heartbeat — every 2s, post a ping so the other window sees us as linked too
+  setInterval(() => {
+    channel.postMessage({ from: myId, type: "ping" });
+  }, 2000);
+
+  // ===== Iframe load handlers — first load triggers full update =====
+  let currentReady = false;
+  iframeCurrent.addEventListener("load", () => {
+    currentReady = true;
+    total = readTotal();
+    update();
+  });
+  iframeNext.addEventListener("load", () => {
+    update();
+  });
+
+  // ===== Keyboard =====
+  document.addEventListener("keydown", (e) => {
+    const tag = (e.target?.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case "PageDown":
+      case " ":
+        e.preventDefault(); go(currentIdx + 1); break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault(); go(currentIdx - 1); break;
+      case "Home":
+        e.preventDefault(); go(1); break;
+      case "End":
+        e.preventDefault(); go(total); break;
+      case "t": case "T":
+        e.preventDefault(); resetTimer(); break;
+    }
+  });
+  prevBtn.onclick = () => go(currentIdx - 1);
+  nextBtn.onclick = () => go(currentIdx + 1);
+
+  // ===== Timer =====
+  let timerRunning = true;
+  let timerStart = Date.now();
+  let timerOffset = 0; // accumulated when paused
+
+  function tickTimer() {
+    const elapsed = Math.floor((timerOffset + (timerRunning ? Date.now() - timerStart : 0)) / 1000);
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    timerEl.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    timerEl.classList.toggle("warn", elapsed >= 50 * 60 && elapsed < 60 * 60);
+    timerEl.classList.toggle("over", elapsed >= 60 * 60);
+  }
+  function resetTimer() {
+    timerStart = Date.now();
+    timerOffset = 0;
+    timerRunning = true;
+    timerToggleBtn.textContent = "pause";
+    tickTimer();
+  }
+  timerResetBtn.onclick = resetTimer;
+  timerToggleBtn.onclick = () => {
+    if (timerRunning) {
+      timerOffset += Date.now() - timerStart;
+      timerRunning = false;
+      timerToggleBtn.textContent = "resume";
+    } else {
+      timerStart = Date.now();
+      timerRunning = true;
+      timerToggleBtn.textContent = "pause";
+    }
+  };
+  setInterval(tickTimer, 500);
+  tickTimer();
+
+  // Initial sync request — in case audience window already has different state
+  setTimeout(() => {
+    channel.postMessage({ from: myId, type: "request-state" });
+  }, 200);
+})();
+</script>
+
+</body>
+</html>
