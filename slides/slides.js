@@ -118,13 +118,22 @@
       el.classList.toggle("current", i === activeIdx);
     });
 
-    // Drive the white "fill" rail from top → center of current stop.
-    // Stops have fixed height 40px; centers sit at (i * 40 + 20)px from top of list.
-    // Rail starts at "top: 28px" (8px padding + 20px to center of first stop).
-    // So fill height = i * 40.
+    // Drive the white "fill" rail from rail-top → center of current stop.
+    // Measure directly from the DOM so the formula never drifts from actual layout.
     const fillEl = document.getElementById("reel-fill");
-    if (fillEl) {
-      fillEl.style.height = activeIdx * 40 + "px";
+    const stopsEl = document.getElementById("reel-stops");
+    if (fillEl && stopsEl) {
+      const activeLi = stopsEl.children[activeIdx];
+      if (activeLi) {
+        // offsetTop is relative to .reel-track (the nearest position:relative ancestor).
+        // Center of active stop = offsetTop + half its height.
+        // Rail/fill starts at that same coordinate for stop 0 (top: set in CSS).
+        // Fill height = center_of_active - center_of_first_stop.
+        const firstLi = stopsEl.children[0];
+        const firstCenter = firstLi ? firstLi.offsetTop + firstLi.offsetHeight / 2 : 28;
+        const activeCenter = activeLi.offsetTop + activeLi.offsetHeight / 2;
+        fillEl.style.height = Math.max(0, activeCenter - firstCenter) + "px";
+      }
     }
   }
 

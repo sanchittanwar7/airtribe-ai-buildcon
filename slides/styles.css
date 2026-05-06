@@ -574,12 +574,12 @@ tr.winner td strong { color: var(--good); }
 .reel-fill {
   position: absolute;
   left: 6px;
-  top: 28px;             /* 8px padding + 20px = center of first 40px stop */
+  top: 28px;             /* matches firstLi.offsetTop + offsetHeight/2 in JS */
   width: 1px;
   pointer-events: none;
 }
 .reel-rail {
-  bottom: 28px;
+  bottom: 28px;          /* symmetric: center of last stop from bottom */
   background-image: linear-gradient(
     to bottom,
     var(--border-strong) 0%,
