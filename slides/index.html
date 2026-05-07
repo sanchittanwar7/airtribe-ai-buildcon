@@ -174,9 +174,21 @@
 </section>
 
 <!-- ============================================================
+     SLIDE — DATASET INTRO (HAMEL HUSAIN QUOTE)
+     ============================================================ -->
+<section class="slide thesis" data-section="Dataset intro" data-reel-stop="- Dataset">
+  <div class="slide-inner">
+    <p class="quote">
+      "Write evals for errors you <em>discover</em>,<br/>not errors you imagine."
+    </p>
+    <p class="muted" style="margin-top: 2rem; text-align: center; font-size: 1.1rem;">— Hamel Husain</p>
+  </div>
+</section>
+
+<!-- ============================================================
      SLIDE — WHAT'S IN A TRACE
      ============================================================ -->
-<section class="slide" data-section="§5 · Tracing" data-reel-stop="- Dataset">
+<section class="slide" data-section="§5 · Tracing">
   <div class="slide-inner">
     <p class="eyebrow">Tracing &amp; debugging</p>
     <h2>What a useful trace looks like.</h2>
@@ -232,6 +244,9 @@ tracer = trace.get_tracer(<span class="str">"job-search-agent"</span>)
 </section>
 
 <!-- ============================================================
+     SLIDE — DATASET INTRO (HAMEL HUSAIN QUOTE)
+     ============================================================ -->
+<!-- ============================================================
      SLIDE — FIVE PILLARS OVERVIEW
      ============================================================ -->
 <section class="slide" data-section="§4 · The five pillars" data-reel-stop="- Grader">
@@ -265,6 +280,28 @@ tracer = trace.get_tracer(<span class="str">"job-search-agent"</span>)
         <div class="desc">Usable in production at scale?</div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — PICK THE RIGHT GRADER
+     ============================================================ -->
+<section class="slide" data-section="§6 · Step 3 · Pick grader">
+  <div class="slide-inner">
+    <h2>Pick the right grader.</h2>
+    <table>
+      <thead>
+        <tr><th>Grader</th><th>When to use</th><th>Cost</th><th>Reliability</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Code / assertion</strong></td><td>Structured outputs, tool args, JSON schemas</td><td>Free</td><td class="good">Highest</td></tr>
+        <tr><td><strong>LLM-as-judge</strong></td><td>Subjective quality, tone, helpfulness</td><td>$$</td><td class="warn">Medium · needs calibration</td></tr>
+        <tr><td><strong>Human review</strong></td><td>Anything novel, ground truth, calibration</td><td>$$$</td><td class="good">Highest · doesn't scale</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 2rem; text-align: center; font-size: 1.4rem;">
+      <em>Use code when you can, models when you must, humans to calibrate.</em>
+    </p>
   </div>
 </section>
 
