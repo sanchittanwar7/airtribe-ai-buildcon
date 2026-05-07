@@ -162,7 +162,7 @@
 <!-- ============================================================
      SLIDE — AN EVAL IS THREE THINGS
      ============================================================ -->
-<section class="slide" data-section="§3 · What is an eval">
+<section class="slide" data-section="§3 · What is an eval" data-reel-stop="What are evals">
   <div class="slide-inner">
     <p class="eyebrow">What an eval actually is</p>
     <h2>An eval is three things.</h2>
@@ -174,9 +174,67 @@
 </section>
 
 <!-- ============================================================
+     SLIDE — WHAT'S IN A TRACE
+     ============================================================ -->
+<section class="slide" data-section="§5 · Tracing" data-reel-stop="- Dataset">
+  <div class="slide-inner">
+    <p class="eyebrow">Tracing &amp; debugging</p>
+    <h2>What a useful trace looks like.</h2>
+    <div class="trace-tree">
+<div class="span-row"><span class="root span-name">▼ agent_run(user="alice", date="2025-05-05")</span><span class="span-time">4.2s</span></div>
+<div class="span-row"><span class="span-name">  ├── fetch_linkedin_feed(user_id="alice")</span><span class="span-time">820ms</span></div>
+<div class="span-row"><span class="span-name">  ├── filter_posts(min_engagement=10) <span class="muted">120 → 18 posts</span></span><span class="span-time">12ms</span></div>
+<div class="span-row"><span class="span-name">  ├── llm_extract(post_id="li-4821") <span class="muted">→ {isMatched: true, company: "Stripe", role: "SWE"}</span></span><span class="span-time">880ms</span></div>
+<div class="span-row"><span class="span-name">  ├── llm_extract(post_id="li-4832") <span class="muted">→ {isMatched: false, company: null, role: null}</span></span><span class="span-time">720ms</span></div>
+<div class="span-row"><span class="span-name">  ├── ... × 16 more</span><span class="span-time">...</span></div>
+<div class="span-row"><span class="span-name">  └── send_telegram(user="alice", matches=3)</span><span class="pass">OK · 240ms</span></div>
+    </div>
+    <p class="muted" style="margin-top: 1rem; font-size: 1.1rem;">Parent-child spans · timing · LLM outputs · filter ratio · the full picture visible at a glance.</p>
+  </div>
+  <div class="speaker-note">
+    <h4>Demo — show the real trace + eval dataset</h4>
+    <p><strong>Switch to the actual project.</strong> Open the trace UI (Langfuse / your logging tool) and pull up a real run from the job search agent.</p>
+    <ul>
+      <li>Click into one <code>llm_extract</code> span. Show the raw LLM input (the LinkedIn post text) and the output (<code>isMatched</code>, <code>company</code>, <code>role</code>). This is exactly what each row in your eval dataset looks like.</li>
+      <li>Find a span from <em>after</em> the bad prompt change — one where <code>isMatched: true</code> came back for an irrelevant post. That trace is now a regression test case.</li>
+      <li>Open the eval dataset file (<code>evals/dataset.json</code> or equivalent). Show the structure: the post text, the expected <code>isMatched</code>, expected <code>company</code>, expected <code>role</code>. Land the line: <em>"Every row in here came from a real trace. I didn't invent these — the prod data handed them to me."</em></li>
+      <li>If time permits: run <code>npm run eval</code> live on a small subset to show it pass/fail in real time.</li>
+    </ul>
+    <p>Pre-record a short screen capture if you can't trust the network or the live demo environment.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — INSTRUMENTATION CODE
+     ============================================================ -->
+<section class="slide" data-section="§5 · Instrumentation">
+  <div class="slide-inner">
+    <span class="demo-callout">Code</span>
+    <h2>What instrumentation looks like.</h2>
+<pre class="code"><span class="kw">from</span> opentelemetry <span class="kw">import</span> trace
+tracer = trace.get_tracer(<span class="str">"job-search-agent"</span>)
+
+<span class="fn">@tracer.start_as_current_span</span>(<span class="str">"agent.run"</span>)
+<span class="kw">def</span> <span class="fn">run_agent</span>(user_id: <span class="kw">str</span>) -&gt; AgentResult:
+    span = trace.get_current_span()
+    span.set_attribute(<span class="str">"agent.user_id"</span>, user_id)
+
+    posts = fetch_linkedin_feed(user_id)
+    <span class="kw">with</span> tracer.start_as_current_span(<span class="str">"llm.extract"</span>) <span class="kw">as</span> s:
+        result = extract_job_info(post)
+        s.set_attribute(<span class="str">"llm.is_matched"</span>, result[<span class="str">"isMatched"</span>])
+        s.set_attribute(<span class="str">"llm.company"</span>,    result[<span class="str">"company"</span>])
+        s.set_attribute(<span class="str">"llm.role"</span>,       result[<span class="str">"role"</span>])</pre>
+    <p class="muted" style="margin-top: 1rem; text-align: center; font-size: 1.15rem;">
+      If your agent doesn't have spans like this today, that's the first thing you do Monday.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================
      SLIDE — FIVE PILLARS OVERVIEW
      ============================================================ -->
-<section class="slide" data-section="§4 · The five pillars" data-reel-stop="Five pillars">
+<section class="slide" data-section="§4 · The five pillars" data-reel-stop="- Grader">
   <div class="slide-inner">
     <p class="eyebrow">The five pillars</p>
     <h2>What you actually grade.</h2>
@@ -240,135 +298,25 @@
       Every grader returns a <strong>boolean</strong>. Binary scoring is non-negotiable.
     </p>
   </div>
-</section>
-
-<!-- ============================================================
-     SLIDE — WHAT'S IN A TRACE
-     ============================================================ -->
-<section class="slide" data-section="§5 · Tracing">
-  <div class="slide-inner">
-    <p class="eyebrow">Tracing &amp; debugging</p>
-    <h2>What a useful trace looks like.</h2>
-    <div class="trace-tree">
-<div class="span-row"><span class="root span-name">▼ agent_run(user="alice", date="2025-05-05")</span><span class="span-time">4.2s</span></div>
-<div class="span-row"><span class="span-name">  ├── fetch_linkedin_feed(user_id="alice")</span><span class="span-time">820ms</span></div>
-<div class="span-row"><span class="span-name">  ├── filter_posts(min_engagement=10) <span class="muted">120 → 18 posts</span></span><span class="span-time">12ms</span></div>
-<div class="span-row"><span class="span-name">  ├── llm_extract(post_id="li-4821") <span class="muted">→ {isMatched: true, company: "Stripe", role: "SWE"}</span></span><span class="span-time">880ms</span></div>
-<div class="span-row"><span class="span-name">  ├── llm_extract(post_id="li-4832") <span class="muted">→ {isMatched: false, company: null, role: null}</span></span><span class="span-time">720ms</span></div>
-<div class="span-row"><span class="span-name">  ├── ... × 16 more</span><span class="span-time">...</span></div>
-<div class="span-row"><span class="span-name">  └── send_telegram(user="alice", matches=3)</span><span class="pass">OK · 240ms</span></div>
-    </div>
-    <p class="muted" style="margin-top: 1rem; font-size: 1.1rem;">Parent-child spans · timing · LLM outputs · filter ratio · the full picture visible at a glance.</p>
-  </div>
-</section>
-
-<!-- ============================================================
-     SLIDE — INSTRUMENTATION CODE
-     ============================================================ -->
-<section class="slide" data-section="§5 · Instrumentation">
-  <div class="slide-inner">
-    <span class="demo-callout">Code</span>
-    <h2>What instrumentation looks like.</h2>
-<pre class="code"><span class="kw">from</span> opentelemetry <span class="kw">import</span> trace
-tracer = trace.get_tracer(<span class="str">"job-search-agent"</span>)
-
-<span class="fn">@tracer.start_as_current_span</span>(<span class="str">"agent.run"</span>)
-<span class="kw">def</span> <span class="fn">run_agent</span>(user_id: <span class="kw">str</span>) -&gt; AgentResult:
-    span = trace.get_current_span()
-    span.set_attribute(<span class="str">"agent.user_id"</span>, user_id)
-
-    posts = fetch_linkedin_feed(user_id)
-    <span class="kw">with</span> tracer.start_as_current_span(<span class="str">"llm.extract"</span>) <span class="kw">as</span> s:
-        result = extract_job_info(post)
-        s.set_attribute(<span class="str">"llm.is_matched"</span>, result[<span class="str">"isMatched"</span>])
-        s.set_attribute(<span class="str">"llm.company"</span>,    result[<span class="str">"company"</span>])
-        s.set_attribute(<span class="str">"llm.role"</span>,       result[<span class="str">"role"</span>])</pre>
-    <p class="muted" style="margin-top: 1rem; text-align: center; font-size: 1.15rem;">
-      If your agent doesn't have spans like this today, that's the first thing you do Monday.
-    </p>
-  </div>
-</section>
-
-<!-- ============================================================
-     SLIDE — FIVE-STEP PLAYBOOK
-     ============================================================ -->
-<section class="slide" data-section="§6 · The playbook" data-reel-stop="Playbook">
-  <div class="slide-inner">
-    <p class="eyebrow">Build the eval suite</p>
-    <h2>The five-step playbook.</h2>
-<pre class="code">1. Look at your data first
-2. Build the dataset from real failures
-3. Pick the right grader for each criterion
-4. Wire it into CI
-5. Close the loop with production</pre>
-  </div>
-</section>
-
-<!-- ============================================================
-     SLIDE — STEP 2
-     ============================================================ -->
-<!-- ============================================================
-     SLIDE — STEP 1: LOOK AT YOUR DATA
-     ============================================================ -->
-<section class="slide" data-section="§6 · Step 1 · Look at data">
-  <div class="slide-inner">
-    <p class="eyebrow">Step 01</p>
-    <h2>Read 50–100 real traces. No shortcuts.</h2>
-    <ul class="bullets" style="margin-top: 1.5rem;">
-      <li>This is <strong>error analysis.</strong> You're cataloguing failure modes you didn't predict.</li>
-      <li><em>Hamel Husain's rule:</em> "Write evals for errors you discover, not errors you imagine."</li>
-      <li>For the job search agent: read 100 real runs. You'll find <em>isMatched</em> fires on company announcements, conference posts, opinion pieces — things that mention roles without offering them.</li>
-      <li><span class="bad">Counter-take to "eval-driven development":</span> you wouldn't have predicted those cases without looking at real data.</li>
+  <div class="speaker-note">
+    <h4>Demo — open evals/run.js from the project</h4>
+    <p><strong>Switch to the actual project.</strong> Open <code>evals/run.js</code> in the editor or terminal.</p>
+    <ul>
+      <li>Walk through the file structure: where the dataset is loaded, where each grader function lives, how results are aggregated and printed.</li>
+      <li>Point out that each grader is just a function — no framework, no magic. A boolean in, a boolean out.</li>
+      <li>Show the <code>isMatched</code> grader specifically — the one that would have caught the regression. Land the line: <em>"This function didn't exist when the user reported the bug. It exists now."</em></li>
+      <li>If the graders are tested across 3 runs (<code>pass^3</code>), show that loop too — it's usually 5–10 lines.</li>
     </ul>
   </div>
 </section>
 
-<section class="slide" data-section="§6 · Step 2 · Build dataset">
-  <div class="slide-inner">
-    <p class="eyebrow">Step 02</p>
-    <h2>Build the dataset.</h2>
-    <ul class="bullets" style="margin-top: 1.5rem;">
-      <li>Source: prod traffic, user complaints, the failures from Step 1.</li>
-      <li><strong>Stratify by failure type.</strong> For the job search agent: clear job posts, borderline posts, opinion pieces, company news, conference announcements.</li>
-      <li>Aim for <strong>~50 examples to start</strong>. I run each 3 times (pass^3) — that's 150 LLM calls per eval run. Manageable.</li>
-      <li>Label each example: <code>expected_matched</code>, <code>expected_company</code>, <code>expected_role</code>.</li>
-    </ul>
-    <p style="margin-top: 1.5rem; font-size: 1.2rem; color: var(--accent);">
-      Every notification your users <strong>complained about or ignored</strong> is a future eval case.
-    </p>
-  </div>
-</section>
-
 <!-- ============================================================
-     SLIDE — STEP 3 · GRADER TABLE
+     SLIDE — NPM RUN EVAL DEMO
      ============================================================ -->
-<section class="slide" data-section="§6 · Step 3 · Pick grader">
-  <div class="slide-inner">
-    <p class="eyebrow">Step 03</p>
-    <h2>Pick the right grader.</h2>
-    <table>
-      <thead>
-        <tr><th>Grader</th><th>When to use</th><th>Cost</th><th>Reliability</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>Code / assertion</strong></td><td>Structured outputs, tool args, JSON schemas</td><td>Free</td><td class="good">Highest</td></tr>
-        <tr><td><strong>LLM-as-judge</strong></td><td>Subjective quality, tone, helpfulness</td><td>$$</td><td class="warn">Medium · needs calibration</td></tr>
-        <tr><td><strong>Human review</strong></td><td>Anything novel, ground truth, calibration</td><td>$$$</td><td class="good">Highest · doesn't scale</td></tr>
-      </tbody>
-    </table>
-    <p style="margin-top: 2rem; text-align: center; font-size: 1.4rem;">
-      <em>Use code when you can, models when you must, humans to calibrate.</em>
-    </p>
-  </div>
-</section>
-
-<!-- ============================================================
-     SLIDE — DEMO: PYTEST OUTPUT
-     ============================================================ -->
-<section class="slide" data-section="§6 · npm run eval demo" data-reel-stop="CI demo">
+<section class="slide" data-section="§6 · npm run eval demo" data-reel-stop="- Runner">
   <div class="slide-inner">
     <span class="demo-callout">Demo</span>
-    <h2>What "evals as CI" actually feels like.</h2>
+    <h2>What running evals actually feels like.</h2>
 <pre class="code terminal" style="border-left-color: var(--good);">npm run eval
 
 Running 50 cases × 3 runs each...
@@ -385,8 +333,34 @@ SCORE DELTA vs main:
 
 <span class="bad">2 regressions detected. Merge blocked.</span></pre>
     <p class="muted" style="margin-top: 1rem; font-size: 1.15rem;">
-      The diff isn't "tests passed." It's a <strong>vector</strong> — five pillars, each with a delta.
+      The diff isn't "tests passed." It's a <strong>vector</strong> — five criteria, each with a delta.
     </p>
+  </div>
+  <div class="speaker-note">
+    <h4>Demo — run evals live</h4>
+    <p><strong>Switch to the terminal.</strong> Run the actual eval suite against the job search agent:</p>
+    <pre>npm run eval</pre>
+    <ul>
+      <li>Let it run in real time — the audience should see cases ticking through. The wait is part of the point: these are real LLM calls, not mocked.</li>
+      <li>When it finishes, walk through the output line by line: what passed, what failed, what the delta vs baseline is.</li>
+      <li>If a grader fails live, even better — narrate it: <em>"This is exactly what I would have seen if I'd had this before shipping that prompt change."</em></li>
+      <li>If the full suite is too slow for a live demo, run a fast subset (<code>npm run eval -- --fast</code> or similar) and explain the full suite runs nightly.</li>
+    </ul>
+    <p>Have the output pre-recorded as a fallback in case of network issues or API rate limits on stage.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE — FOUR-STEP PLAYBOOK
+     ============================================================ -->
+<section class="slide" data-section="§6 · The playbook" data-reel-stop="Playbook">
+  <div class="slide-inner">
+    <p class="eyebrow">Build the eval suite</p>
+    <h2>The four-step playbook.</h2>
+<pre class="code">1. Build the dataset from your traces (real failures, real posts)
+2. Pick the right grader for each criterion (code &gt; LLM &gt; human)
+3. Wire into CI — run on every LLM or prompt change
+4. Close the loop — feed prod failures back into the dataset</pre>
   </div>
 </section>
 
